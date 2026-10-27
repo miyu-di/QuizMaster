@@ -1,0 +1,257 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Gilroy', Arial, sans-serif;
+  color: #f4f4f4;
+  background: #171717;
+
+  --color-primary: #245df5;
+  --color-text: #f4f4f4;
+  --color-muted: #8b8b8b;
+  --color-background: #171717;
+  --color-surface: #1d1d1d;
+  --color-border: #4a4a4a;
+
+  --font-body: 'Gilroy', Arial, sans-serif;
+  --page-padding: 100px;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@font-face {
+  font-family: 'Gilroy';
+  src: url('/fonts/Gilroy-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gilroy';
+  src: url('/fonts/Gilroy-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.site-header {
+  position: absolute;
+  z-index: 10;
+  top: 20px;
+  left: 50%;
+  display: flex;
+  width: min(1240px, calc(100% - 48px));
+  height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  transform: translateX(-50%);
+  color: #f4f4f4;
+}
+
+.logo {
+  flex: 0 0 auto;
+  color: inherit;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.main-nav,
+.quiz-types,
+.auth-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.site-header a {
+  color: inherit;
+}
+
+.quiz-types,
+.main-nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+}
+
+.auth-nav {
+  margin-left: auto;
+  font-size: 14px;
+}
+
+.auth-nav a:first-child {
+  padding: 8px 20px;
+  border: 1px solid #777;
+  border-radius: 20px;
+}
+
+.auth-nav a:last-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+main {
+  min-height: 100vh;
+  padding: 150px max(24px, calc((100% - 1240px) / 2)) 48px;
+}
+
+@media (max-width: 767px) {
+  .site-header {
+    width: calc(100% - 32px);
+  }
+
+  .quiz-types,
+  .main-nav {
+    position: static;
+    transform: none;
+  }
+
+  main {
+    padding: 110px 16px 32px;
+  }
+}
+
+.hero-title {
+  max-width: 924px;
+  color: #f4f4f4;
+  font-size: 120px;
+  font-weight: 700;
+  line-height: 110px;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 767px) {
+  .hero-title {
+    font-size: clamp(48px, 12vw, 80px);
+    line-height: 0.95;
+  }
+}
+
+.site-header {
+  position: fixed;
+  z-index: 10;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 72px;
+  padding-inline: var(--page-padding, 16px);
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.logo {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.main-nav,
+.quiz-types,
+.auth-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-menu summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+main {
+  padding: 96px var(--page-padding, 16px) 32px;
+}
+
+@media (max-width: 767px) {
+  .site-header {
+    flex-wrap: wrap;
+    padding-block: 12px;
+  }
+
+  .main-nav,
+  .quiz-types,
+  .auth-nav {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (max-width: 374px) {
+  :root {
+    --page-padding: 16px;
+  }
+}
+
+@media (min-width: 375px) {
+  :root {
+    --page-padding: 20px;
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --page-padding: 32px;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --page-padding: 48px;
+  }
+}
