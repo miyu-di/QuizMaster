@@ -7,13 +7,24 @@ import { FavoritePage } from './pages/FavoritePage';
 import { MyQuizzesPage } from './pages/MyQuizzesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { useEffect } from 'react';
+import { useAppDispatch } from './redux/hooks';
+import { refreshUser } from './redux/auth/operations';
+import AuthPage from './pages/AuthPage/AuthPage';
 
 function App() {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    dispatch(refreshUser());
+  }, [dispatch])
+
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
       <Routes>
         <Route element={<SharedLayout />}>
+          <Route path="/auth/:authType" element={<AuthPage />} />
           <Route path="/" element={<HomePage />} />
           <Route path="/discover" element={<DiscoverPage />} />
           <Route path="/favorites" element={<FavoritePage />} />
