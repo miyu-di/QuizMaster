@@ -6,7 +6,7 @@ const options = {
     info: {
       title: 'Quiz Platform API',
       version: '1.0.0',
-      description: 'API documentation for authentication and current-user endpoints.'
+      description: 'API documentation for authentication, users and quizzes.'
     },
     servers: [
       {
@@ -45,6 +45,53 @@ const options = {
               }
             }
           }
+        },
+        Quiz: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '671234567890abcdef123456' },
+            title: { type: 'string', minLength: 3, maxLength: 32, example: 'Space trivia' },
+            owner: { type: 'string', example: '671234567890abcdef123457' },
+            ageGroup: { type: 'string', enum: ['adults', 'children'], example: 'adults' },
+            category: { type: 'string', example: '' },
+            background: { type: 'string', example: '' },
+            rating: { type: 'number', example: 0 },
+            reviewsCount: { type: 'integer', example: 0 },
+            passCount: { type: 'integer', example: 0 },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        QuizCollection: {
+          type: 'object',
+          required: ['quizzes', 'total'],
+          properties: {
+            quizzes: { type: 'array', items: { $ref: '#/components/schemas/Quiz' } },
+            total: { type: 'integer', example: 12, description: 'All quizzes of this age group' }
+          }
+        },
+        Question: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '671234567890abcdef123458' },
+            type: { type: 'string', example: 'full-text' },
+            time: { type: 'integer', example: 30, description: 'Seconds to answer' },
+            description: { type: 'string', example: 'What is the capital of France?' },
+            image: { type: 'string', example: '' },
+            answers: { type: 'array', items: {}, example: ['Paris', 'Rome'] },
+            validAnswer: { description: 'Correct answer (id or index of the option)', example: 0 }
+          }
+        },
+        QuizDetails: {
+          allOf: [
+            { $ref: '#/components/schemas/Quiz' },
+            {
+              type: 'object',
+              properties: {
+                questions: { type: 'array', items: { $ref: '#/components/schemas/Question' } }
+              }
+            }
+          ]
         },
         Error: {
           type: 'object',
