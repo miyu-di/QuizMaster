@@ -195,19 +195,26 @@ describe('GET /api/quizzes/:id', () => {
     });
     await Question.create({
       quiz: quiz._id,
-      type: 'full-text',
+      type: 'single-choice',
       time: 30,
       description: 'Capital of France?',
-      answers: ['Paris', 'Rome', 'Berlin'],
-      validAnswer: 0
+      answers: [
+        { id: 'a', text: 'Paris' },
+        { id: 'b', text: 'Rome' },
+        { id: 'c', text: 'Berlin' }
+      ],
+      validAnswer: 'a'
     });
     await Question.create({
       quiz: quiz._id,
       type: 'true-false',
       time: 15,
       description: 'The Earth is flat.',
-      answers: ['True', 'False'],
-      validAnswer: 1
+      answers: [
+        { id: 'true', text: 'True' },
+        { id: 'false', text: 'False' }
+      ],
+      validAnswer: 'false'
     });
 
     const res = await request(app).get(`/api/quizzes/${quiz._id}`);
@@ -222,8 +229,12 @@ describe('GET /api/quizzes/:id', () => {
     expect(res.body.quiz.questions).toHaveLength(2);
     expect(res.body.quiz.questions[0]).toMatchObject({
       description: 'Capital of France?',
-      answers: ['Paris', 'Rome', 'Berlin'],
-      validAnswer: 0,
+      answers: [
+        { id: 'a', text: 'Paris' },
+        { id: 'b', text: 'Rome' },
+        { id: 'c', text: 'Berlin' }
+      ],
+      validAnswer: 'a',
       time: 30
     });
     expect(res.body.quiz.questions[1].description).toBe('The Earth is flat.');
@@ -244,11 +255,14 @@ describe('GET /api/quizzes/:id', () => {
     const other = await seedQuiz({ title: 'Other quiz', ageGroup: 'adults' });
     await Question.create({
       quiz: other._id,
-      type: 'full-text',
+      type: 'single-choice',
       time: 10,
       description: 'Belongs to another quiz',
-      answers: ['x'],
-      validAnswer: 0
+      answers: [
+        { id: 'x', text: 'x' },
+        { id: 'y', text: 'y' }
+      ],
+      validAnswer: 'x'
     });
 
     const res = await request(app).get(`/api/quizzes/${quiz._id}`);
