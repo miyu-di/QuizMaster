@@ -35,11 +35,14 @@ function addQuestions(quizId, count = 2) {
   return Question.insertMany(
     Array.from({ length: count }, (_, i) => ({
       quiz: quizId,
-      type: 'full-text',
+      type: 'single-choice',
       time: 30,
       description: `Question number ${i + 1}`,
-      answers: ['a', 'b'],
-      validAnswer: 0
+      answers: [
+        { id: 'a', text: 'a' },
+        { id: 'b', text: 'b' }
+      ],
+      validAnswer: 'a'
     }))
   );
 }

@@ -12,6 +12,8 @@ const {
   deleteQuiz
 } = require('../controllers/quizzesController');
 const { createQuizSchema, updateQuizSchema, listQuizzesSchema } = require('../validators/quizValidators');
+const { createQuestion } = require('../controllers/questionsController');
+const { createQuestionSchema } = require('../validators/questionValidators');
 
 const router = express.Router();
 
@@ -248,5 +250,81 @@ router.post('/', authenticate, validateBody(createQuizSchema), createQuiz);
  */
 router.patch('/:id', authenticate, validateObjectId('id'), validateBody(updateQuizSchema), updateQuiz);
 router.delete('/:id', authenticate, validateObjectId('id'), deleteQuiz);
+
+/**
+ * @swagger
+ * /api/quizzes/{quizId}/questions:
+ *   post:
+ *     tags: [Questions]
+ *     summary: Add a question to a quiz (owner only)
+ *     description: |
+ *       `description` 8-128 chars, 2-6 answers each with a unique `id` and `text` of 1-128 chars.
+ *       `validAnswer` must equal the `id` of one of the answers, otherwise 400.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: quizId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [type, description, answers, validAnswer]
+ *             properties:
+ *               type: { type: string, enum: [single-choice, true-false], example: single-choice }
+ *               time: { type: integer, minimum: 0, maximum: 3600, default: 0, example: 30 }
+ *               description: { type: string, minLength: 8, maxLength: 128, example: What is the capital of France? }
+ *               answers:
+ *                 type: array
+ *                 minItems: 2
+ *                 maxItems: 6
+ *                 items:
+ *                   type: object
+ *                   required: [id, text]
+ *                   properties:
+ *                     id: { type: string, maxLength: 64, example: a }
+ *                     text: { type: string, minLength: 1, maxLength: 128, example: Paris }
+ *               validAnswer: { type: string, example: a }
+ *     responses:
+ *       201:
+ *         description: Question created.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 question: { $ref: '#/components/schemas/Question' }
+ *       400:
+ *         description: Invalid id or validation failed (including validAnswer not matching any answer).
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       401:
+ *         description: Not authenticated.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       403:
+ *         description: The quiz belongs to another user.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       404:
+ *         description: Quiz not found.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.post(
+  '/:quizId/questions',
+  authenticate,
+  validateObjectId('quizId'),
+  validateBody(createQuestionSchema),
+  createQuestion
+);
 
 module.exports = router;

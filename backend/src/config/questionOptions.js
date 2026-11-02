@@ -1,0 +1,20 @@
+const QUESTION_TYPES = ['single-choice', 'true-false'];
+
+const DESCRIPTION_MIN = 8;
+const DESCRIPTION_MAX = 128;
+const ANSWER_TEXT_MIN = 1;
+const ANSWER_TEXT_MAX = 128;
+const ANSWERS_MIN = 2;
+const ANSWERS_MAX = 6;
+const TIME_MAX = 3600;
+
+module.exports = {
+  QUESTION_TYPES,
+  DESCRIPTION_MIN,
+  DESCRIPTION_MAX,
+  ANSWER_TEXT_MIN,
+  ANSWER_TEXT_MAX,
+  ANSWERS_MIN,
+  ANSWERS_MAX,
+  TIME_MAX
+};

@@ -1,6 +1,7 @@
 function toPublicQuestion(question) {
   return {
     _id: question._id,
+    quiz: question.quiz,
     type: question.type,
     time: question.time,
     description: question.description,

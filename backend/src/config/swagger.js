@@ -74,12 +74,22 @@ const options = {
           type: 'object',
           properties: {
             _id: { type: 'string', example: '671234567890abcdef123458' },
-            type: { type: 'string', example: 'full-text' },
-            time: { type: 'integer', example: 30, description: 'Seconds to answer' },
+            quiz: { type: 'string', example: '671234567890abcdef123456', description: 'Id of the quiz the question belongs to' },
+            type: { type: 'string', enum: ['single-choice', 'true-false'], example: 'single-choice' },
+            time: { type: 'integer', example: 30, description: 'Seconds to answer (0 = no limit)' },
             description: { type: 'string', example: 'What is the capital of France?' },
             image: { type: 'string', example: '' },
-            answers: { type: 'array', items: {}, example: ['Paris', 'Rome'] },
-            validAnswer: { description: 'Correct answer (id or index of the option)', example: 0 }
+            answers: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', example: 'a' },
+                  text: { type: 'string', example: 'Paris' }
+                }
+              }
+            },
+            validAnswer: { type: 'string', description: 'Id of the correct answer option', example: 'a' }
           }
         },
         QuizDetails: {

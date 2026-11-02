@@ -4,25 +4,13 @@ const Question = require('../models/Question');
 const User = require('../models/User');
 const toPublicQuiz = require('../helpers/publicQuiz');
 const toPublicQuestion = require('../helpers/publicQuestion');
+const findOwnedQuiz = require('../helpers/findOwnedQuiz');
 const { AGE_GROUPS, CATEGORIES, DEFAULT_AGE_GROUP } = require('../config/quizOptions');
 
 const SORTS = {
   popular: { passCount: -1, createdAt: -1, _id: -1 },
   latest: { createdAt: -1, _id: -1 }
 };
-
-async function findOwnedQuiz(quizId, userId) {
-  const quiz = await Quiz.findById(quizId);
-
-  if (!quiz) {
-    throw createError(404, 'Quiz not found');
-  }
-  if (!quiz.owner.equals(userId)) {
-    throw createError(403, 'You can only modify your own quizzes');
-  }
-
-  return quiz;
-}
 
 async function fetchCollection(ageGroup, { limit, page, sort }) {
   const filter = { ageGroup };
