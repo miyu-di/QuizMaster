@@ -1,4 +1,5 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
+import authReducer from './auth/slice';
 
 const appSlice = createSlice({
   name: 'app',
@@ -16,6 +17,7 @@ export const { setAuthenticated } = appSlice.actions;
 
 export const store = configureStore({
   reducer: {
+    auth: authReducer,
     app: appSlice.reducer,
   },
 });
