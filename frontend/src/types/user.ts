@@ -1,6 +1,15 @@
+export type QuizResult = {
+  quiz: string;
+  correctAnswers: number;
+  totalQuestions: number;
+  date: string;
+};
+
 export type User = {
-  id: string;
+  _id: string;
   name: string;
   email: string;
-  avatarUrl?: string;
+  avatarURL: string;
+  favorites: string[];
+  results: QuizResult[];
 };

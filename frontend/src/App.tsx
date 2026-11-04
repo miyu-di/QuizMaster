@@ -1,5 +1,4 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
 import { SharedLayout } from './components/SharedLayout';
 import { HomePage } from './pages/HomePage';
 import { DiscoverPage } from './pages/DiscoverPage';
@@ -7,6 +6,7 @@ import { FavoritePage } from './pages/FavoritePage';
 import { MyQuizzesPage } from './pages/MyQuizzesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   return (
