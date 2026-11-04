@@ -1,6 +1,9 @@
-export type User = {
-  id: string;
+export type Review = {
+  _id: string;
+  quiz: string;
   name: string;
-  email: string;
-  avatarUrl?: string;
+  avatar: string;
+  rate: number;
+  comment: string;
+  createdAt: string;
 };
