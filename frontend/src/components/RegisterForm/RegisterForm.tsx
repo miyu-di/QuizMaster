@@ -33,7 +33,7 @@ const RegisterForm = () => {
   return (
     <div className={css.container} role="dialog" aria-labelledby="register-title">
       <h2 id="register-title" className={css.title}>
-        Sign in
+        Sign Up
       </h2>
 
       <form className={css.form} onSubmit={handleSubmit(onSubmit)} noValidate>

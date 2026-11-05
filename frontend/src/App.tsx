@@ -12,6 +12,7 @@ import AuthPage from './pages/AuthPage/AuthPage';
 import PrivateRoute from './routes/PrivateRoute';
 import { useAppDispatch } from './redux/hooks';
 import { refreshUser } from './redux/auth/operations';
+import { QuizListPage } from './pages/QuizListPage'; 
 
 function App() {
   const dispatch = useAppDispatch();
@@ -27,6 +28,8 @@ function App() {
         <Route element={<SharedLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/auth/:authType" element={<AuthPage />} />
+          <Route path="/adults" element={<QuizListPage ageGroup="adults" />} />
+          <Route path="/children" element={<QuizListPage ageGroup="children" />} />
 
           <Route element={<PrivateRoute />}>
             <Route path="/discover" element={<DiscoverPage />} />
