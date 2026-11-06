@@ -2,6 +2,7 @@ import { Link, NavLink } from 'react-router-dom';
 import type { User } from '../types/auth';
 import { useState } from 'react';
 import { ModalLogout } from './ModalLogout/ModalLogout';
+import Modal from './Modal/Modal';
 
 type HeaderProps = {
   isAuthenticated: boolean;
@@ -31,25 +32,41 @@ export function Header({ isAuthenticated, user }: HeaderProps) {
 </button>
 
 {isMenuOpen && (
-  <nav className="mobile-menu" id="mobile-menu" aria-label="Main navigation">
-    {isAuthenticated ? (
-      <>
-        <NavLink to="/" onClick={() => setIsMenuOpen(false)}>Home</NavLink>
-        <NavLink to="/discover" onClick={() => setIsMenuOpen(false)}>Discover</NavLink>
-        <NavLink to="/favorites" onClick={() => setIsMenuOpen(false)}>Favorite quiz</NavLink>
-        <NavLink to="/my-quizzes" onClick={() => setIsMenuOpen(false)}>My quiz</NavLink>
-        <Link to="/settings" onClick={() => setIsMenuOpen(false)}>Settings</Link>
-      </>
-    ) : (
-      <>
-        <Link to="/adults" onClick={() => setIsMenuOpen(false)}>For Adults</Link>
-        <Link to="/children" onClick={() => setIsMenuOpen(false)}>For Children</Link>
-        <Link to="/auth/login" onClick={() => setIsMenuOpen(false)}>Log in</Link>
-        <Link to="/auth/register" onClick={() => setIsMenuOpen(false)}>Register</Link>
-      </>
-    )}
-  </nav>
+  <Modal onClose={() => setIsMenuOpen(false)}>
+    <nav
+      className="mobile-menu"
+      id="mobile-menu"
+      aria-label="Mobile navigation"
+    >
+      {isAuthenticated ? (
+        <>
+          <NavLink to="/" onClick={() => setIsMenuOpen(false)}>Home</NavLink>
+          <NavLink to="/discover" onClick={() => setIsMenuOpen(false)}>Discover</NavLink>
+          <NavLink to="/favorites" onClick={() => setIsMenuOpen(false)}>Favorite quiz</NavLink>
+          <NavLink to="/my-quizzes" onClick={() => setIsMenuOpen(false)}>My quiz</NavLink>
+          <Link to="/settings" onClick={() => setIsMenuOpen(false)}>Settings</Link>
+          <button
+            type="button"
+            onClick={() => {
+              setIsMenuOpen(false);
+              setIsLogoutModalOpen(true);
+            }}
+          >
+            Logout
+          </button>
+        </>
+      ) : (
+        <>
+          <Link to="/adults" onClick={() => setIsMenuOpen(false)}>For Adults</Link>
+          <Link to="/children" onClick={() => setIsMenuOpen(false)}>For Children</Link>
+          <Link to="/auth/login" onClick={() => setIsMenuOpen(false)}>Log in</Link>
+          <Link to="/auth/register" onClick={() => setIsMenuOpen(false)}>Register</Link>
+        </>
+      )}
+    </nav>
+  </Modal>
 )}
+
   {isAuthenticated ? (
     <>
       <nav className="main-nav" aria-label="Основна навігація">
