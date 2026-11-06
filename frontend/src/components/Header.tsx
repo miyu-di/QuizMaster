@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom';
 import type { User } from '../types/auth';
 import { useState } from 'react';
+import { ModalLogout } from './ModalLogout/ModalLogout';
 
 type HeaderProps = {
   isAuthenticated: boolean;
@@ -9,6 +10,7 @@ type HeaderProps = {
 
 export function Header({ isAuthenticated, user }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   return (
     <header className="site-header">
       <Link className="logo" to="/" aria-label="Quiz Master — на головну">
@@ -71,7 +73,12 @@ export function Header({ isAuthenticated, user }: HeaderProps) {
         </summary>
         <nav aria-label="Меню користувача">
           <Link to="/settings">Settings</Link>
-          <button type="button">Logout</button>
+          <button
+            type="button"
+            onClick={() => setIsLogoutModalOpen(true)}
+          >
+            Logout
+          </button>
         </nav>
       </details>
     </>
@@ -86,6 +93,10 @@ export function Header({ isAuthenticated, user }: HeaderProps) {
         <Link to="/auth/register">Register</Link>
       </nav>
     </>
+  )}
+
+  {isLogoutModalOpen && (
+    <ModalLogout onClose={() => setIsLogoutModalOpen(false)} />
   )}
 </header>
   );
