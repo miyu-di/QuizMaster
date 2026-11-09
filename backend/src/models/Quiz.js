@@ -18,4 +18,15 @@ const quizSchema = new mongoose.Schema(
 quizSchema.index({ ageGroup: 1, passCount: -1, createdAt: -1 });
 quizSchema.index({ ageGroup: 1, createdAt: -1 });
 
+// Під GET /api/quizzes/filter: категорії + порядок «популярні спершу» (passCount, createdAt, _id),
+// вікова група + мінімальний рейтинг. Пошук за назвою — регістронезалежний regex по вже
+// звуженій вибірці (індекс по title для підрядка не допоміг би).
+quizSchema.index({ category: 1, passCount: -1, createdAt: -1 });
+quizSchema.index({ ageGroup: 1, category: 1, passCount: -1, createdAt: -1 });
+quizSchema.index({ rating: -1, passCount: -1 });
+quizSchema.index({ title: 1 });
+
+// Під GET /api/quizzes/own: тести власника, найновіші спершу.
+quizSchema.index({ owner: 1, createdAt: -1, _id: -1 });
+
 module.exports = mongoose.model('Quiz', quizSchema);
