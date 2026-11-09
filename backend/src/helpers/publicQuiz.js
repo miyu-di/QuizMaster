@@ -1,5 +1,6 @@
-function toPublicQuiz(quiz) {
-  return {
+// isFavorite передається лише для авторизованого користувача; для гостя поле не додається.
+function toPublicQuiz(quiz, isFavorite) {
+  const result = {
     _id: quiz._id,
     title: quiz.title,
     owner: quiz.owner,
@@ -12,6 +13,12 @@ function toPublicQuiz(quiz) {
     createdAt: quiz.createdAt,
     updatedAt: quiz.updatedAt
   };
+
+  if (isFavorite !== undefined) {
+    result.isFavorite = isFavorite;
+  }
+
+  return result;
 }
 
 module.exports = toPublicQuiz;

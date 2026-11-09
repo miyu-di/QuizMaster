@@ -1,5 +1,6 @@
 const express = require('express');
 const authenticate = require('../middlewares/authenticate');
+const authenticateOptional = require('../middlewares/authenticateOptional');
 const validateBody = require('../middlewares/validateBody');
 const validateObjectId = require('../middlewares/validateObjectId');
 const validateQuery = require('../middlewares/validateQuery');
@@ -35,7 +36,7 @@ const router = express.Router();
  *                 children: { type: array, items: { type: string }, example: [Animals, Fairy tales] }
  */
 router.get('/categories', getCategories);
-router.get('/', validateQuery(listQuizzesSchema), getQuizzes);
+router.get('/', validateQuery(listQuizzesSchema), authenticateOptional, getQuizzes);
 // /categories оголошено вище, інакше :id перехопив би його.
 router.get('/:id', validateObjectId('id'), getQuizById);
 
@@ -46,11 +47,22 @@ router.get('/:id', validateObjectId('id'), getQuizById);
  *     tags: [Quizzes]
  *     summary: Get quizzes for adults and/or children
  *     description: |
- *       Public. Quizzes are split by age group. With `type=both` the response contains both
- *       collections, each limited to `limit` items. `total` inside a collection is the number of
- *       quizzes of that age group in the database; the top-level `total` is the sum over the
- *       returned collections. Only the requested collections are present in the response.
- *       Popularity is `passCount`. A `limit` outside 4-8 returns 400.
+ *       Public; the cookie is optional. Quizzes are split by age group. With `type=both` the response
+ *       contains both collections, each limited to `limit` items and paginated with the same `page`.
+ *       Only the requested collections are present in the response.
+ *
+ *       Pagination: `limit` 4-8 (default 4), `page` from 1. A `limit` outside 4-8 returns 400.
+ *       `total` inside a collection is the number of quizzes of that age group in the database;
+ *       `hasMore` inside a collection is `page * limit < total`, so it is false on the last portion.
+ *       The top-level `total` is the sum over the returned collections, the top-level `hasMore`
+ *       is true if at least one returned collection has more items.
+ *
+ *       If a valid cookie is sent, every quiz has `isFavorite` (is it in the user's favorites).
+ *       For guests, or with an invalid/expired cookie, `isFavorite` is omitted and no error is returned.
+ *       Popularity is `passCount`.
+ *     security:
+ *       - {}
+ *       - cookieAuth: []
  *     parameters:
  *       - in: query
  *         name: type
@@ -69,18 +81,19 @@ router.get('/:id', validateObjectId('id'), getQuizById);
  *         schema: { type: integer, minimum: 1, default: 1 }
  *     responses:
  *       200:
- *         description: Requested collections and total count.
+ *         description: Requested collections, total count and hasMore flag.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
- *               required: [total]
+ *               required: [total, hasMore]
  *               properties:
  *                 adults: { $ref: '#/components/schemas/QuizCollection' }
  *                 children: { $ref: '#/components/schemas/QuizCollection' }
  *                 total: { type: integer, example: 12 }
+ *                 hasMore: { type: boolean, example: true }
  *       400:
- *         description: Invalid query parameter (e.g. limit outside 4-8).
+ *         description: Invalid query parameter (e.g. limit outside 4-8, page below 1).
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }

@@ -5,6 +5,7 @@ const User = require('../models/User');
 const toPublicQuiz = require('../helpers/publicQuiz');
 const toPublicQuestion = require('../helpers/publicQuestion');
 const findOwnedQuiz = require('../helpers/findOwnedQuiz');
+const { getSkip, hasMorePages } = require('../helpers/pagination');
 const { AGE_GROUPS, CATEGORIES, DEFAULT_AGE_GROUP } = require('../config/quizOptions');
 
 const SORTS = {
@@ -12,18 +13,25 @@ const SORTS = {
   latest: { createdAt: -1, _id: -1 }
 };
 
-async function fetchCollection(ageGroup, { limit, page, sort }) {
+async function fetchCollection(ageGroup, { limit, page, sort }, favoriteIds) {
   const filter = { ageGroup };
   const [quizzes, total] = await Promise.all([
     Quiz.find(filter)
       .sort(SORTS[sort])
-      .skip((page - 1) * limit)
+      .skip(getSkip({ page, limit }))
       .limit(limit)
       .lean(),
     Quiz.countDocuments(filter)
   ]);
 
-  return { quizzes: quizzes.map(toPublicQuiz), total };
+  return {
+    // Стрілка потрібна: map передав би індекс другим аргументом, а це isFavorite.
+    quizzes: quizzes.map((quiz) =>
+      toPublicQuiz(quiz, favoriteIds ? favoriteIds.has(String(quiz._id)) : undefined)
+    ),
+    total,
+    hasMore: hasMorePages({ page, limit, total })
+  };
 }
 
 async function getQuizzes(req, res, next) {
@@ -31,13 +39,19 @@ async function getQuizzes(req, res, next) {
     const { type, ...options } = req.validatedQuery;
     const ageGroups = type === 'both' ? AGE_GROUPS : [type];
 
-    const collections = await Promise.all(ageGroups.map((group) => fetchCollection(group, options)));
+    // ObjectId у favorites і _id тесту порівнюємо як рядки (так вони й ідуть у JSON).
+    const favoriteIds = req.user ? new Set(req.user.favorites.map(String)) : null;
+
+    const collections = await Promise.all(
+      ageGroups.map((group) => fetchCollection(group, options, favoriteIds))
+    );
 
     const body = {};
     ageGroups.forEach((group, index) => {
       body[group] = collections[index];
     });
     body.total = collections.reduce((sum, collection) => sum + collection.total, 0);
+    body.hasMore = collections.some((collection) => collection.hasMore);
 
     res.status(200).json(body);
   } catch (error) {
