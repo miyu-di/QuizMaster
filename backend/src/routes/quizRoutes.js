@@ -7,12 +7,21 @@ const validateQuery = require('../middlewares/validateQuery');
 const {
   getCategories,
   getQuizzes,
+  filterQuizzes,
+  getOwnQuizzes,
+  getLastPassedQuizzes,
   getQuizById,
   createQuiz,
   updateQuiz,
   deleteQuiz
 } = require('../controllers/quizzesController');
-const { createQuizSchema, updateQuizSchema, listQuizzesSchema } = require('../validators/quizValidators');
+const {
+  createQuizSchema,
+  updateQuizSchema,
+  listQuizzesSchema,
+  filterQuizzesSchema,
+  privateListSchema
+} = require('../validators/quizValidators');
 const { createQuestion } = require('../controllers/questionsController');
 const { createQuestionSchema } = require('../validators/questionValidators');
 
@@ -36,8 +45,179 @@ const router = express.Router();
  *                 children: { type: array, items: { type: string }, example: [Animals, Fairy tales] }
  */
 router.get('/categories', getCategories);
+
+/**
+ * @swagger
+ * /api/quizzes/filter:
+ *   get:
+ *     tags: [Quizzes]
+ *     summary: Filter and search quizzes
+ *     description: |
+ *       Public; the cookie is optional. All filters are combined with AND and are optional.
+ *       Without `categories` the search goes over all categories.
+ *       Quizzes are ordered by popularity (`passCount` desc, then newest first).
+ *
+ *       `categories` accepts several values: `?categories=History&categories=Art` or
+ *       `?categories=History,Art`. Unknown categories return 400.
+ *       `rating` is a minimum: quizzes with `rating >= value` are returned.
+ *       `search` is a case-insensitive substring of the quiz title.
+ *
+ *       `total` is the number of all quizzes that match the filters (not only on this page).
+ *       No matches: `quizzes: []` and `total: 0` with status 200.
+ *       `isFavorite` is always a boolean: `false` for guests and for an invalid/expired cookie.
+ *     security:
+ *       - {}
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: categories
+ *         description: One or more categories (repeat the parameter or separate by comma).
+ *         schema: { type: array, items: { type: string } }
+ *         style: form
+ *         explode: true
+ *       - in: query
+ *         name: ageGroup
+ *         schema: { type: string, enum: [adults, children] }
+ *       - in: query
+ *         name: rating
+ *         description: Minimum rating (0-5).
+ *         schema: { type: number, minimum: 0, maximum: 5 }
+ *       - in: query
+ *         name: search
+ *         description: Part of the quiz title, case-insensitive (max 100 chars).
+ *         schema: { type: string, maxLength: 100 }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         description: Portion size (4-8).
+ *         schema: { type: integer, minimum: 4, maximum: 8, default: 8 }
+ *     responses:
+ *       200:
+ *         description: Found quizzes (one portion) and the total count.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [quizzes, total, hasMore]
+ *               properties:
+ *                 quizzes:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/FilteredQuiz' }
+ *                 total: { type: integer, example: 17, description: All quizzes matching the filters }
+ *                 hasMore: { type: boolean, example: true, description: 'page * limit < total' }
+ *       400:
+ *         description: Invalid query parameter (unknown category or ageGroup, rating outside 0-5, page below 1, limit outside 4-8).
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.get('/filter', validateQuery(filterQuizzesSchema), authenticateOptional, filterQuizzes);
+
+/**
+ * @swagger
+ * /api/quizzes/own:
+ *   get:
+ *     tags: [Quizzes]
+ *     summary: Quizzes created by the current user
+ *     description: |
+ *       Private. Returns only quizzes whose owner is the authenticated user; quizzes of other users
+ *       never appear here, and an `owner` query parameter is ignored. Newest quizzes first.
+ *       Items have the same fields as `GET /api/quizzes/filter`; `isFavorite` is true if the quiz is
+ *       also in the user's favorites.
+ *
+ *       Pagination: `limit` 4-8 (default 8), `page` from 1. `total` is the number of all the user's
+ *       quizzes, `hasMore` is `page * limit < total`. No quizzes: `quizzes: []`, `total: 0`.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         description: Portion size (4-8).
+ *         schema: { type: integer, minimum: 4, maximum: 8, default: 8 }
+ *     responses:
+ *       200:
+ *         description: One portion of the user's quizzes.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [quizzes, total, hasMore]
+ *               properties:
+ *                 quizzes:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/FilteredQuiz' }
+ *                 total: { type: integer, example: 17 }
+ *                 hasMore: { type: boolean, example: true }
+ *       400:
+ *         description: Invalid query parameter (page below 1, limit outside 4-8).
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       401:
+ *         description: Not authenticated.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.get('/own', authenticate, validateQuery(privateListSchema), getOwnQuizzes);
+
+/**
+ * @swagger
+ * /api/quizzes/last-passed:
+ *   get:
+ *     tags: [Quizzes]
+ *     summary: Quizzes the current user has passed, with the last result
+ *     description: |
+ *       Private. One item per quiz, even if the user passed it several times: `lastResult` is the
+ *       most recent attempt. The most recently passed quizzes come first. Items have the fields of
+ *       `GET /api/quizzes/filter` plus `lastResult`. Quizzes that no longer exist are skipped.
+ *
+ *       Pagination: `limit` 4-8 (default 8), `page` from 1. `total` is the number of passed quizzes,
+ *       `hasMore` is `page * limit < total`. Nothing passed yet: `quizzes: []`, `total: 0`.
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, minimum: 1, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         description: Portion size (4-8).
+ *         schema: { type: integer, minimum: 4, maximum: 8, default: 8 }
+ *     responses:
+ *       200:
+ *         description: One portion of passed quizzes.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [quizzes, total, hasMore]
+ *               properties:
+ *                 quizzes:
+ *                   type: array
+ *                   items: { $ref: '#/components/schemas/LastPassedQuiz' }
+ *                 total: { type: integer, example: 5 }
+ *                 hasMore: { type: boolean, example: false }
+ *       400:
+ *         description: Invalid query parameter (page below 1, limit outside 4-8).
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       401:
+ *         description: Not authenticated.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.get('/last-passed', authenticate, validateQuery(privateListSchema), getLastPassedQuizzes);
+
 router.get('/', validateQuery(listQuizzesSchema), authenticateOptional, getQuizzes);
-// /categories оголошено вище, інакше :id перехопив би його.
+// /categories, /filter, /own і /last-passed оголошено вище, інакше :id перехопив би їх.
 router.get('/:id', validateObjectId('id'), getQuizById);
 
 /**

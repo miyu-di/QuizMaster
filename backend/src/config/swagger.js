@@ -67,6 +67,39 @@ const options = {
             }
           }
         },
+        FilteredQuiz: {
+          type: 'object',
+          required: ['id', 'title', 'category', 'rating', 'isFavorite', 'passCount'],
+          properties: {
+            id: { type: 'string', example: '671234567890abcdef123456' },
+            title: { type: 'string', example: 'Space trivia' },
+            category: { type: 'string', example: 'Science' },
+            rating: { type: 'number', example: 4.5 },
+            isFavorite: { type: 'boolean', example: false, description: 'false for guests' },
+            passCount: { type: 'integer', example: 12 }
+          }
+        },
+        LastPassedQuiz: {
+          allOf: [
+            { $ref: '#/components/schemas/FilteredQuiz' },
+            {
+              type: 'object',
+              required: ['lastResult'],
+              properties: {
+                lastResult: {
+                  type: 'object',
+                  required: ['correctAnswers', 'totalQuestions', 'date'],
+                  description: 'The most recent attempt of this quiz by the user.',
+                  properties: {
+                    correctAnswers: { type: 'integer', example: 7 },
+                    totalQuestions: { type: 'integer', example: 10 },
+                    date: { type: 'string', format: 'date-time' }
+                  }
+                }
+              }
+            }
+          ]
+        },
         QuizCollection: {
           type: 'object',
           required: ['quizzes', 'total', 'hasMore'],

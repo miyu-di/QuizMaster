@@ -4,6 +4,10 @@ const Question = require('../models/Question');
 const User = require('../models/User');
 const toPublicQuiz = require('../helpers/publicQuiz');
 const toPublicQuestion = require('../helpers/publicQuestion');
+const toFilteredQuiz = require('../helpers/publicFilteredQuiz');
+const toLastPassedQuiz = require('../helpers/publicLastPassedQuiz');
+const latestResults = require('../helpers/latestResults');
+const escapeRegex = require('../helpers/escapeRegex');
 const findOwnedQuiz = require('../helpers/findOwnedQuiz');
 const { getSkip, hasMorePages } = require('../helpers/pagination');
 const { AGE_GROUPS, CATEGORIES, DEFAULT_AGE_GROUP } = require('../config/quizOptions');
@@ -12,6 +16,8 @@ const SORTS = {
   popular: { passCount: -1, createdAt: -1, _id: -1 },
   latest: { createdAt: -1, _id: -1 }
 };
+
+const FILTERED_FIELDS = toFilteredQuiz.FIELDS;
 
 async function fetchCollection(ageGroup, { limit, page, sort }, favoriteIds) {
   const filter = { ageGroup };
@@ -54,6 +60,98 @@ async function getQuizzes(req, res, next) {
     body.hasMore = collections.some((collection) => collection.hasMore);
 
     res.status(200).json(body);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function filterQuizzes(req, res, next) {
+  try {
+    const { categories, ageGroup, rating, search, page, limit } = req.validatedQuery;
+
+    // Без categories умови по категорії немає — пошук іде по всіх.
+    const filter = {};
+    if (categories.length > 0) filter.category = { $in: categories };
+    if (ageGroup) filter.ageGroup = ageGroup;
+    if (rating !== undefined) filter.rating = { $gte: rating };
+    if (search) filter.title = { $regex: escapeRegex(search), $options: 'i' };
+
+    const [quizzes, total] = await Promise.all([
+      Quiz.find(filter)
+        .select(FILTERED_FIELDS)
+        .sort(SORTS.popular)
+        .skip(getSkip({ page, limit }))
+        .limit(limit)
+        .lean(),
+      Quiz.countDocuments(filter)
+    ]);
+
+    const favoriteIds = req.user ? new Set(req.user.favorites.map(String)) : new Set();
+
+    res.status(200).json({
+      quizzes: quizzes.map((quiz) => toFilteredQuiz(quiz, favoriteIds.has(String(quiz._id)))),
+      total,
+      hasMore: hasMorePages({ page, limit, total })
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Тести поточного користувача. Власника беремо лише з req.user, ніколи з query/body.
+async function getOwnQuizzes(req, res, next) {
+  try {
+    const { page, limit } = req.validatedQuery;
+    const filter = { owner: req.user._id };
+
+    const [quizzes, total] = await Promise.all([
+      Quiz.find(filter)
+        .select(FILTERED_FIELDS)
+        .sort(SORTS.latest)
+        .skip(getSkip({ page, limit }))
+        .limit(limit)
+        .lean(),
+      Quiz.countDocuments(filter)
+    ]);
+
+    const favoriteIds = new Set(req.user.favorites.map(String));
+
+    res.status(200).json({
+      quizzes: quizzes.map((quiz) => toFilteredQuiz(quiz, favoriteIds.has(String(quiz._id)))),
+      total,
+      hasMore: hasMorePages({ page, limit, total })
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Пройдені тести: по одному запису на тест з останнім результатом, найсвіжіші спершу.
+// Результати лежать у користувачі, тому порядок і total рахуємо тут; тести, яких уже немає
+// (видалені), пропускаємо — щоб у кожної картки був і тест, і результат.
+async function getLastPassedQuizzes(req, res, next) {
+  try {
+    const { page, limit } = req.validatedQuery;
+    const latest = latestResults(req.user.results);
+
+    const quizzes = await Quiz.find({ _id: { $in: latest.map((result) => result.quiz) } })
+      .select(FILTERED_FIELDS)
+      .lean();
+    const quizById = new Map(quizzes.map((quiz) => [String(quiz._id), quiz]));
+
+    const existing = latest.filter((result) => quizById.has(String(result.quiz)));
+    const total = existing.length;
+    const skip = getSkip({ page, limit });
+    const favoriteIds = new Set(req.user.favorites.map(String));
+
+    res.status(200).json({
+      quizzes: existing.slice(skip, skip + limit).map((result) => {
+        const id = String(result.quiz);
+        return toLastPassedQuiz(quizById.get(id), favoriteIds.has(id), result);
+      }),
+      total,
+      hasMore: hasMorePages({ page, limit, total })
+    });
   } catch (error) {
     next(error);
   }
@@ -153,4 +251,14 @@ async function deleteQuiz(req, res, next) {
   }
 }
 
-module.exports = { getCategories, getQuizzes, getQuizById, createQuiz, updateQuiz, deleteQuiz };
+module.exports = {
+  getCategories,
+  getQuizzes,
+  filterQuizzes,
+  getOwnQuizzes,
+  getLastPassedQuizzes,
+  getQuizById,
+  createQuiz,
+  updateQuiz,
+  deleteQuiz
+};
