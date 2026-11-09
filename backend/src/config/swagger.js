@@ -58,16 +58,26 @@ const options = {
             rating: { type: 'number', example: 0 },
             reviewsCount: { type: 'integer', example: 0 },
             passCount: { type: 'integer', example: 0 },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' }
+            createdAt: { type: 'string', format: 'date-time', description: 'ISO 8601 string in JSON' },
+            updatedAt: { type: 'string', format: 'date-time', description: 'ISO 8601 string in JSON' },
+            isFavorite: {
+              type: 'boolean',
+              example: false,
+              description: 'Present only in GET /api/quizzes for an authenticated user; omitted for guests.'
+            }
           }
         },
         QuizCollection: {
           type: 'object',
-          required: ['quizzes', 'total'],
+          required: ['quizzes', 'total', 'hasMore'],
           properties: {
             quizzes: { type: 'array', items: { $ref: '#/components/schemas/Quiz' } },
-            total: { type: 'integer', example: 12, description: 'All quizzes of this age group' }
+            total: { type: 'integer', example: 12, description: 'All quizzes of this age group' },
+            hasMore: {
+              type: 'boolean',
+              example: true,
+              description: 'True if there are more quizzes after this portion (page * limit < total). False on the last portion.'
+            }
           }
         },
         Question: {

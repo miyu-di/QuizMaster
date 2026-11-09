@@ -10,6 +10,7 @@ const app = require('../src/app');
 const swaggerSpec = require('../src/config/swagger');
 const Quiz = require('../src/models/Quiz');
 const Question = require('../src/models/Question');
+const User = require('../src/models/User');
 const { collectErrors, responseSchema } = require('./helpers/matchesSchema');
 
 let mongod;
@@ -50,7 +51,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await Promise.all([Quiz.deleteMany({}), Question.deleteMany({})]);
+  await Promise.all([Quiz.deleteMany({}), Question.deleteMany({}), User.deleteMany({})]);
 });
 
 describe('GET /api/quizzes', () => {
@@ -140,14 +141,80 @@ describe('GET /api/quizzes', () => {
     expect(third.body.adults.quizzes).toHaveLength(2);
   });
 
+  it('hasMore is true while there are more portions and false on the last one', async () => {
+    await seedCollections();
+
+    const pages = [];
+    for (const page of [1, 2, 3]) {
+      const res = await request(app).get(`/api/quizzes?type=adults&limit=4&page=${page}`);
+      expect(res.status).toBe(200);
+      pages.push(res.body);
+    }
+
+    expect(pages.map((body) => body.adults.hasMore)).toEqual([true, true, false]);
+    expect(pages.map((body) => body.hasMore)).toEqual([true, true, false]);
+    expect(pages.every((body) => body.adults.total === 10)).toBe(true);
+    expectMatchesSwagger(pages[2], '/api/quizzes', 'get', '200');
+  });
+
+  it('hasMore is false when the last portion is exactly full and for a page past the end', async () => {
+    for (let i = 0; i < 8; i += 1) {
+      await seedQuiz({ title: `Exact quiz ${i}`, ageGroup: 'adults', index: i });
+    }
+
+    const last = await request(app).get('/api/quizzes?type=adults&limit=4&page=2');
+    const beyond = await request(app).get('/api/quizzes?type=adults&limit=4&page=3');
+
+    expect(last.body.adults.quizzes).toHaveLength(4);
+    expect(last.body.adults.hasMore).toBe(false);
+    expect(beyond.status).toBe(200);
+    expect(beyond.body.adults.quizzes).toEqual([]);
+    expect(beyond.body.adults.hasMore).toBe(false);
+  });
+
+  it('type=both: hasMore is per collection, the top-level one is true while any collection has more', async () => {
+    await seedCollections();
+
+    const res = await request(app).get('/api/quizzes?type=both&limit=4&page=2');
+
+    expect(res.body.adults.quizzes).toHaveLength(4);
+    expect(res.body.adults.hasMore).toBe(true);
+    expect(res.body.children.quizzes).toHaveLength(2);
+    expect(res.body.children.hasMore).toBe(false);
+    expect(res.body.hasMore).toBe(true);
+  });
+
+  it('limit=9 returns 400 and a missing limit defaults to 4', async () => {
+    await seedCollections();
+
+    const tooBig = await request(app).get('/api/quizzes?limit=9');
+    const byDefault = await request(app).get('/api/quizzes?type=adults');
+
+    expect(tooBig.status).toBe(400);
+    expect(byDefault.body.adults.quizzes).toHaveLength(4);
+  });
+
+  it('serializes quiz _id and createdAt as strings', async () => {
+    const quiz = await seedQuiz({ title: 'Strings quiz', ageGroup: 'adults', index: 5 });
+
+    const res = await request(app).get('/api/quizzes?type=adults');
+    const [item] = res.body.adults.quizzes;
+
+    expect(typeof item._id).toBe('string');
+    expect(item._id).toBe(String(quiz._id));
+    expect(typeof item.createdAt).toBe('string');
+    expect(item.createdAt).toBe(new Date(2026, 0, 1, 0, 5).toISOString());
+  });
+
   it('returns empty collections with zero totals when nothing exists', async () => {
     const res = await request(app).get('/api/quizzes');
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      adults: { quizzes: [], total: 0 },
-      children: { quizzes: [], total: 0 },
-      total: 0
+      adults: { quizzes: [], total: 0, hasMore: false },
+      children: { quizzes: [], total: 0, hasMore: false },
+      total: 0,
+      hasMore: false
     });
   });
 
@@ -182,6 +249,96 @@ describe('GET /api/quizzes', () => {
     const res = await request(app).get('/api/quizzes/categories');
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.adults)).toBe(true);
+  });
+});
+
+describe('GET /api/quizzes: isFavorite and optional authentication', () => {
+  async function signUp(email = 'fav@example.com') {
+    const agent = request.agent(app);
+    const res = await agent.post('/api/auth/register').send({ name: 'Fav', email, password: 'password123' });
+    expect(res.status).toBe(201);
+    return { agent, id: res.body.user._id };
+  }
+
+  it('does not add isFavorite for a guest', async () => {
+    await seedCollections();
+
+    const res = await request(app).get('/api/quizzes');
+
+    expect(res.status).toBe(200);
+    const all = [...res.body.adults.quizzes, ...res.body.children.quizzes];
+    expect(all.every((q) => !('isFavorite' in q))).toBe(true);
+  });
+
+  it('adds isFavorite to every quiz for an authenticated user', async () => {
+    await seedCollections();
+    const { agent, id } = await signUp();
+    const top = await Quiz.findOne({ title: 'Adults quiz 9' });
+    const kid = await Quiz.findOne({ title: 'Kids quiz 5' });
+    await User.updateOne({ _id: id }, { $set: { favorites: [top._id, kid._id] } });
+
+    const res = await agent.get('/api/quizzes?type=both&limit=4');
+
+    expect(res.status).toBe(200);
+    const all = [...res.body.adults.quizzes, ...res.body.children.quizzes];
+    expect(all.every((q) => typeof q.isFavorite === 'boolean')).toBe(true);
+    expect(res.body.adults.quizzes.find((q) => q._id === String(top._id)).isFavorite).toBe(true);
+    expect(res.body.adults.quizzes.filter((q) => q.isFavorite)).toHaveLength(1);
+    expect(res.body.children.quizzes.find((q) => q._id === String(kid._id)).isFavorite).toBe(true);
+    expect(res.body.children.quizzes.filter((q) => q.isFavorite)).toHaveLength(1);
+    expectMatchesSwagger(res.body, '/api/quizzes', 'get', '200');
+  });
+
+  it('marks a favorite on any page, not only on the first one', async () => {
+    await seedCollections();
+    const { agent, id } = await signUp();
+    const oldest = await Quiz.findOne({ title: 'Adults quiz 0' });
+    await User.updateOne({ _id: id }, { $set: { favorites: [oldest._id] } });
+
+    const res = await agent.get('/api/quizzes?type=adults&limit=4&page=3');
+
+    expect(res.body.adults.quizzes.map((q) => [q.title, q.isFavorite])).toEqual([
+      ['Adults quiz 1', false],
+      ['Adults quiz 0', true]
+    ]);
+    expect(res.body.adults.hasMore).toBe(false);
+  });
+
+  it('gives isFavorite=false everywhere when the user has no favorites', async () => {
+    await seedCollections();
+    const { agent } = await signUp();
+
+    const res = await agent.get('/api/quizzes?type=adults');
+
+    expect(res.body.adults.quizzes.every((q) => q.isFavorite === false)).toBe(true);
+  });
+
+  it('treats an invalid cookie as a guest instead of failing', async () => {
+    await seedCollections();
+
+    const res = await request(app).get('/api/quizzes?type=adults').set('Cookie', 'token=not-a-jwt');
+
+    expect(res.status).toBe(200);
+    expect(res.body.adults.quizzes.every((q) => !('isFavorite' in q))).toBe(true);
+  });
+
+  it('treats a cookie of a deleted user as a guest instead of failing', async () => {
+    await seedCollections();
+    const { agent, id } = await signUp();
+    await User.deleteOne({ _id: id });
+
+    const res = await agent.get('/api/quizzes?type=adults');
+
+    expect(res.status).toBe(200);
+    expect(res.body.adults.quizzes.every((q) => !('isFavorite' in q))).toBe(true);
+  });
+
+  it('still validates the query for an authenticated user', async () => {
+    const { agent } = await signUp();
+
+    const res = await agent.get('/api/quizzes?limit=9');
+
+    expect(res.status).toBe(400);
   });
 });
 
