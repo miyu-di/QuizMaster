@@ -13,14 +13,16 @@ const {
   getQuizById,
   createQuiz,
   updateQuiz,
-  deleteQuiz
+  deleteQuiz,
+  updateQuizStats
 } = require('../controllers/quizzesController');
 const {
   createQuizSchema,
   updateQuizSchema,
   listQuizzesSchema,
   filterQuizzesSchema,
-  privateListSchema
+  privateListSchema,
+  quizStatsSchema
 } = require('../validators/quizValidators');
 const { createQuestion } = require('../controllers/questionsController');
 const { createQuestionSchema } = require('../validators/questionValidators');
@@ -443,6 +445,68 @@ router.post('/', authenticate, validateBody(createQuizSchema), createQuiz);
  */
 router.patch('/:id', authenticate, validateObjectId('id'), validateBody(updateQuizSchema), updateQuiz);
 router.delete('/:id', authenticate, validateObjectId('id'), deleteQuiz);
+
+/**
+ * @swagger
+ * /api/quizzes/{id}/stats:
+ *   post:
+ *     tags: [Quizzes]
+ *     summary: Submit the result of a finished quiz
+ *     description: |
+ *       Public; the cookie is optional. Called once after the quiz is finished.
+ *       Increases the quiz `passCount` by 1 and returns the new value together with the submitted
+ *       result and the current quiz rating.
+ *
+ *       For an authenticated user the result is also saved to the profile (`results`): one entry
+ *       per quiz, created on the first attempt and updated afterwards only if the new share of
+ *       correct answers (`correct / total`) is strictly better than the stored one.
+ *       For a guest nothing is saved apart from the counter.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [total, correct]
+ *             properties:
+ *               total: { type: integer, minimum: 1, maximum: 100, example: 10, description: Number of questions in the quiz }
+ *               correct: { type: integer, minimum: 0, example: 7, description: Number of correct answers, from 0 to `total` }
+ *     responses:
+ *       200:
+ *         description: Counter updated.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [passCount, totalQuestions, correctAnswers, rating]
+ *               properties:
+ *                 passCount: { type: integer, example: 13, description: New number of passes of the quiz }
+ *                 totalQuestions: { type: integer, example: 10 }
+ *                 correctAnswers: { type: integer, example: 7 }
+ *                 rating: { type: number, example: 4.5, description: Current rating of the quiz }
+ *       400:
+ *         description: Invalid id, `total` outside 1-100, or `correct` outside 0..`total`.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       404:
+ *         description: Quiz not found.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.post(
+  '/:id/stats',
+  validateObjectId('id'),
+  validateBody(quizStatsSchema),
+  authenticateOptional,
+  updateQuizStats
+);
 
 /**
  * @swagger

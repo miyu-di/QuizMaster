@@ -20,6 +20,19 @@ const updateQuizSchema = Joi.object({
   .min(1)
   .messages({ 'object.min': 'Provide at least one field to update' });
 
+// Статистика проходження: total — кількість питань (1–100), correct — правильні (0…total).
+const MAX_QUESTIONS = 100;
+
+const quizStatsSchema = Joi.object({
+  total: Joi.number().integer().min(1).max(MAX_QUESTIONS).required(),
+  correct: Joi.number()
+    .integer()
+    .min(0)
+    .max(Joi.ref('total'))
+    .required()
+    .messages({ 'number.max': '\"correct\" must be less than or equal to \"total\"' })
+});
+
 const listQuizzesSchema = Joi.object({
   type: Joi.string().valid(...AGE_GROUPS, 'both').default('both'),
   sort: Joi.string().valid('popular', 'latest').default('popular'),
@@ -65,5 +78,6 @@ module.exports = {
   updateQuizSchema,
   listQuizzesSchema,
   filterQuizzesSchema,
-  privateListSchema
+  privateListSchema,
+  quizStatsSchema
 };

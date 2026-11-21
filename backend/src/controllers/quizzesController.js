@@ -9,6 +9,7 @@ const toLastPassedQuiz = require('../helpers/publicLastPassedQuiz');
 const latestResults = require('../helpers/latestResults');
 const escapeRegex = require('../helpers/escapeRegex');
 const findOwnedQuiz = require('../helpers/findOwnedQuiz');
+const isBetterResult = require('../helpers/isBetterResult');
 const { getSkip, hasMorePages } = require('../helpers/pagination');
 const { AGE_GROUPS, CATEGORIES, DEFAULT_AGE_GROUP } = require('../config/quizOptions');
 
@@ -251,6 +252,68 @@ async function deleteQuiz(req, res, next) {
   }
 }
 
+// Зберігає результат авторизованого користувача: у профілі лишається один запис на тест,
+// і він оновлюється лише тоді, коли новий результат кращий за збережений.
+async function saveUserResult(user, quizId, { correct, total }) {
+  const next = { correctAnswers: correct, totalQuestions: total };
+  const stored = user.results.filter((result) => String(result.quiz) === String(quizId));
+
+  if (stored.length === 0) {
+    // Умова $ne не дає двом паралельним першим запитам створити два записи для одного тесту.
+    await User.updateOne(
+      { _id: user._id, 'results.quiz': { $ne: quizId } },
+      { $push: { results: { quiz: quizId, ...next, date: new Date() } } }
+    );
+    return;
+  }
+
+  // Якщо через старі дані записів кілька, порівнюємо з найкращим із них.
+  const isImprovement = stored.every((result) => isBetterResult(next, result));
+  if (!isImprovement) return;
+
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        'results.$[entry].correctAnswers': correct,
+        'results.$[entry].totalQuestions': total,
+        'results.$[entry].date': new Date()
+      }
+    },
+    { arrayFilters: [{ 'entry.quiz': quizId }] }
+  );
+}
+
+// Викликається після завершення тесту; працює і для гостя (authenticateOptional).
+// Лічильник збільшуємо атомарно ($inc), щоб паралельні проходження не губились.
+async function updateQuizStats(req, res, next) {
+  try {
+    const { total, correct } = req.body;
+
+    const quiz = await Quiz.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { passCount: 1 } },
+      { new: true }
+    ).lean();
+    if (!quiz) {
+      throw createError(404, 'Quiz not found');
+    }
+
+    if (req.user) {
+      await saveUserResult(req.user, quiz._id, { correct, total });
+    }
+
+    res.status(200).json({
+      passCount: quiz.passCount,
+      totalQuestions: total,
+      correctAnswers: correct,
+      rating: quiz.rating
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getCategories,
   getQuizzes,
@@ -260,5 +323,6 @@ module.exports = {
   getQuizById,
   createQuiz,
   updateQuiz,
-  deleteQuiz
+  deleteQuiz,
+  updateQuizStats
 };
