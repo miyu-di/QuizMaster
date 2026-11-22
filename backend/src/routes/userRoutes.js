@@ -1,7 +1,7 @@
 const express = require('express');
 const authenticate = require('../middlewares/authenticate');
 const validateQuery = require('../middlewares/validateQuery');
-const { getCurrentUser, getFavorites } = require('../controllers/usersController');
+const { getCurrentUser, getFavorites, getUserStats } = require('../controllers/usersController');
 const { privateListSchema } = require('../validators/quizValidators');
 
 const router = express.Router();
@@ -79,5 +79,41 @@ router.get('/current', authenticate, getCurrentUser);
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 router.get('/favorites', authenticate, validateQuery(privateListSchema), getFavorites);
+
+/**
+ * @swagger
+ * /api/users/stats:
+ *   get:
+ *     tags: [Users]
+ *     summary: Pass statistics of the current user (for UserStats on the home page)
+ *     description: |
+ *       Private. Calculated from the quiz results saved in the profile (one best result per quiz,
+ *       see `POST /api/quizzes/{id}/stats`).
+ *
+ *       - `passedCount` - number of different quizzes the user has passed.
+ *       - `successRate` - percentage of those quizzes passed successfully, rounded to an integer.
+ *         A pass is successful when at least 50% of the answers are correct.
+ *
+ *       No results yet: `passedCount: 0`, `successRate: 0`.
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistics of the current user.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required: [passedCount, successRate]
+ *               properties:
+ *                 passedCount: { type: integer, minimum: 0, example: 8 }
+ *                 successRate: { type: integer, minimum: 0, maximum: 100, example: 75 }
+ *       401:
+ *         description: Not authenticated.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
+router.get('/stats', authenticate, getUserStats);
 
 module.exports = router;

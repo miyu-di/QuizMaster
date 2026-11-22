@@ -2,6 +2,7 @@ const Quiz = require('../models/Quiz');
 const toPublicUser = require('../helpers/publicUser');
 const toFilteredQuiz = require('../helpers/publicFilteredQuiz');
 const { getSkip, hasMorePages } = require('../helpers/pagination');
+const { calculateUserStats } = require('../helpers/userStats');
 
 function getCurrentUser(req, res) {
   res.status(200).json({ user: toPublicUser(req.user) });
@@ -34,4 +35,9 @@ async function getFavorites(req, res, next) {
   }
 }
 
-module.exports = { getCurrentUser, getFavorites };
+// Статистика поточного користувача для HomePage/UserStats: рахуємо з results у профілі.
+function getUserStats(req, res) {
+  res.status(200).json(calculateUserStats(req.user.results));
+}
+
+module.exports = { getCurrentUser, getFavorites, getUserStats };
